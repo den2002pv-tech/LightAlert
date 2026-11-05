@@ -4,12 +4,16 @@ kotlin = "2.4.21"
 composeBom = "2026.04.01"
 activityCompose = "1.13.0"
 lifecycle = "2.10.0"
+dataStore = "1.2.0"
+gson = "2.13.2"
 junit = "4.13.2"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "dataStore" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }

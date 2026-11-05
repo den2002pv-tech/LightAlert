@@ -14,6 +14,17 @@ interface ScheduleHistoryStore {
         revision: ScheduleRevisionEntity,
     )
 
+    /**
+     * Atomically stores the source message, accepted parsed revision and the
+     * effective queue rows produced by the merger. All queue rows must belong
+     * to this revision's date and source message.
+     */
+    suspend fun recordAcceptedRevision(
+        message: SourceMessageEntity,
+        revision: ScheduleRevisionEntity,
+        effectiveQueues: List<EffectiveQueueEntity>,
+    )
+
     suspend fun saveEffectiveQueues(queues: List<EffectiveQueueEntity>)
 
     fun observeSourceMessages(): Flow<List<SourceMessageEntity>>

@@ -26,8 +26,39 @@ class RoomScheduleHistoryStore(
         }
     }
 
+    override suspend fun recordAcceptedRevision(
+        message: SourceMessageEntity,
+        revision: ScheduleRevisionEntity,
+        effectiveQueues: List<EffectiveQueueEntity>,
+    ) {
+        require(message.sourceMessageKey == revision.sourceMessageKey) {
+            "Revision must reference the source message being saved"
+        }
+        require(revision.accepted) {
+            "Only accepted revisions may update the effective schedule"
+        }
+        require(effectiveQueues.all { queue ->
+            queue.scheduleDate == revision.scheduleDate &&
+                queue.sourceMessageKey == message.sourceMessageKey
+        }) {
+            "Effective queues must match the revision date and source message"
+        }
+
+        database.withTransaction {
+            dao.upsertSourceMessage(message)
+            dao.upsertScheduleRevision(revision)
+            if (effectiveQueues.isNotEmpty()) {
+                // Upsert only supplied queues: other queues remain unchanged.
+                dao.upsertEffectiveQueues(effectiveQueues)
+            }
+        }
+    }
+
     override suspend fun saveEffectiveQueues(queues: List<EffectiveQueueEntity>) {
         if (queues.isEmpty()) return
+        require(queues.map { it.scheduleDate }.distinct().size == 1) {
+            "A single write must contain queues for exactly one schedule date"
+        }
         database.withTransaction {
             dao.upsertEffectiveQueues(queues)
         }

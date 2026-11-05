@@ -7,7 +7,7 @@ import com.google.gson.JsonParseException
 import com.google.gson.reflect.TypeToken
 import java.time.LocalTime
 
-internal class ScheduleConfigurationCodec(
+class ScheduleConfigurationCodec(
     private val gson: Gson = Gson(),
 ) {
     private val listType = object : TypeToken<List<StoredInterval>>() {}.type

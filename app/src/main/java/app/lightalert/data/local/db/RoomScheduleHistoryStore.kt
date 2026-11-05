@@ -17,7 +17,7 @@ class RoomScheduleHistoryStore(
         revision: ScheduleRevisionEntity,
     ) {
         require(message.sourceMessageKey == revision.sourceMessageKey) {
-            "Revision must reference the source message being saved"
+            "Revision must reference the source message version being saved"
         }
 
         database.withTransaction {
@@ -32,7 +32,7 @@ class RoomScheduleHistoryStore(
         effectiveQueues: List<EffectiveQueueEntity>,
     ) {
         require(message.sourceMessageKey == revision.sourceMessageKey) {
-            "Revision must reference the source message being saved"
+            "Revision must reference the source message version being saved"
         }
         require(revision.accepted) {
             "Only accepted revisions may update the effective schedule"
@@ -41,7 +41,7 @@ class RoomScheduleHistoryStore(
             queue.scheduleDate == revision.scheduleDate &&
                 queue.sourceMessageKey == message.sourceMessageKey
         }) {
-            "Effective queues must match the revision date and source message"
+            "Effective queues must match the revision date and source message version"
         }
 
         database.withTransaction {

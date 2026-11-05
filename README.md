@@ -2,49 +2,30 @@
 
 LightAlert — нативное Android-приложение для отображения расписаний плановых и аварийных отключений электроэнергии.
 
-На текущем этапе создана базовая Android-основа. Интеграция с Telegram, получение расписаний, локальное хранилище, уведомления и виджеты пока не реализованы.
+Сейчас приложение содержит базовую Android-основу и локальное хранилище конфигурации расписания. Интеграция с Telegram, получение реальных расписаний, уведомления и виджеты пока не реализованы.
 
 ## Технологии
 
 - Kotlin
 - Jetpack Compose и Material 3
 - MVVM
-- Gradle Kotlin DSL
-- Gradle Version Catalog
+- Gradle Kotlin DSL и Version Catalog
 - AndroidX Lifecycle, Coroutines и Flow
+- Preferences DataStore для локального хранения расписания
 - Минимальная версия Android: 8.0 (API 26)
 
-## Структура проекта
-
-```text
-LightAlert/
-├── .github/workflows/android-build.yml
-├── app/
-│   └── src/
-│       ├── main/
-│       │   ├── java/app/lightalert/
-│       │   │   ├── core/
-│       │   │   ├── data/
-│       │   │   ├── domain/model/
-│       │   │   └── presentation/
-│       │   │       ├── home/
-│       │   │       └── theme/
-│       │   └── res/
-│       └── test/
-├── gradle/
-│   ├── libs.versions.toml
-│   └── wrapper/
-├── build.gradle.kts
-├── settings.gradle.kts
-└── gradlew
-```
-
-### Архитектурные слои
+## Архитектура
 
 - `presentation` — Compose-интерфейс и ViewModel.
-- `domain` — модели и бизнес-правила.
-- `data` — будущие репозитории и источники данных.
-- `core` — будущие общие компоненты приложения.
+- `domain` — модели расписания и контракт репозитория.
+- `data` — реализация репозитория, локальное хранилище и преобразование данных.
+- `core` — общие компоненты приложения.
+
+## Локальное хранение
+
+Конфигурация расписания сохраняется на устройстве через Preferences DataStore. ViewModel наблюдает за потоком данных, поэтому состояние главного экрана автоматически обновляется при изменении сохранённой конфигурации.
+
+В хранилище не сохраняются Telegram-коды, пароли или ключи авторизации. Подключение Telegram будет отдельным этапом.
 
 ## Локальная сборка
 
@@ -68,23 +49,11 @@ LightAlert/
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Android Studio для сборки не требуется. Gradle Wrapper самостоятельно загружает нужную версию Gradle.
-
 ## Сборка через GitHub Actions
 
 Workflow находится в `.github/workflows/android-build.yml`.
 
-Он запускается:
-- при push в `main`;
-- при pull request в `main`;
-- вручную через вкладку Actions.
-
-Workflow устанавливает JDK и Android SDK, запускает unit-тесты, собирает debug APK и публикует его как artifact с именем `LightAlert-debug-apk`.
-
-Чтобы скачать APK:
-1. Откройте вкладку **Actions** репозитория.
-2. Выберите успешный запуск **Android CI**.
-3. В разделе **Artifacts** скачайте `LightAlert-debug-apk`.
+Он запускается при push в `main` или `feature/android-foundation`, при pull request в `main` и вручную через вкладку Actions. Workflow устанавливает JDK и Android SDK, запускает unit-тесты, собирает debug APK и публикует artifact `LightAlert-debug-apk` на 14 дней.
 
 ## Текущий статус
 
@@ -93,8 +62,10 @@ Workflow устанавливает JDK и Android SDK, запускает unit-
 - [x] Светлая и тёмная темы
 - [x] Начальная MVVM-структура
 - [x] Domain-модель расписания
-- [x] Gradle Wrapper
-- [x] Unit-тесты domain-модели
+- [x] Контракт репозитория расписания
+- [x] Локальное хранение конфигурации через DataStore
+- [x] Автоматическое обновление состояния главного экрана
+- [x] Unit-тесты domain-модели и сериализации
 - [x] GitHub Actions для тестирования и сборки APK
 - [ ] Подключение TDLib и авторизация Telegram
 - [ ] Выбор Telegram-каналов и групп
@@ -103,4 +74,4 @@ Workflow устанавливает JDK и Android SDK, запускает unit-
 - [ ] Android-виджет
 - [ ] Уведомления об отключениях
 
-Все будущие функции будут добавляться отдельными этапами. На данный момент приложение не подключается к Telegram и не получает реальные данные об отключениях.
+Приложение пока не подключается к Telegram и не получает реальные данные об отключениях.

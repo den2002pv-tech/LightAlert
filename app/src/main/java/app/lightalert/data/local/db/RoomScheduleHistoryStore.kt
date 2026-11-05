@@ -8,6 +8,9 @@ class RoomScheduleHistoryStore(
 ) : ScheduleHistoryStore {
     private val dao = database.lightAlertDao()
 
+    override suspend fun hasSourceMessage(sourceMessageKey: String): Boolean =
+        dao.getSourceMessage(sourceMessageKey) != null
+
     override suspend fun recordSourceMessage(message: SourceMessageEntity) {
         dao.upsertSourceMessage(message)
     }
@@ -19,7 +22,6 @@ class RoomScheduleHistoryStore(
         require(message.sourceMessageKey == revision.sourceMessageKey) {
             "Revision must reference the source message version being saved"
         }
-
         database.withTransaction {
             dao.upsertSourceMessage(message)
             dao.upsertScheduleRevision(revision)
@@ -43,14 +45,10 @@ class RoomScheduleHistoryStore(
         }) {
             "Effective queues must match the revision date and source message version"
         }
-
         database.withTransaction {
             dao.upsertSourceMessage(message)
             dao.upsertScheduleRevision(revision)
-            if (effectiveQueues.isNotEmpty()) {
-                // Upsert only supplied queues: other queues remain unchanged.
-                dao.upsertEffectiveQueues(effectiveQueues)
-            }
+            if (effectiveQueues.isNotEmpty()) dao.upsertEffectiveQueues(effectiveQueues)
         }
     }
 
@@ -59,9 +57,7 @@ class RoomScheduleHistoryStore(
         require(queues.map { it.scheduleDate }.distinct().size == 1) {
             "A single write must contain queues for exactly one schedule date"
         }
-        database.withTransaction {
-            dao.upsertEffectiveQueues(queues)
-        }
+        database.withTransaction { dao.upsertEffectiveQueues(queues) }
     }
 
     override fun observeSourceMessages(): Flow<List<SourceMessageEntity>> =

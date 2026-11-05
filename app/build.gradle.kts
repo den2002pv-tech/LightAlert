@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "app.lightalert"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.lightalert"

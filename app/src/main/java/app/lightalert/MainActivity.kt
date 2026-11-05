@@ -8,6 +8,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.lightalert.presentation.home.HomeScreen
 import app.lightalert.presentation.home.HomeViewModel
+import app.lightalert.presentation.home.HomeViewModelFactory
 import app.lightalert.presentation.theme.LightAlertTheme
 
 class MainActivity : ComponentActivity() {
@@ -15,9 +16,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val app = application as LightAlertApplication
+
         setContent {
             LightAlertTheme {
-                val homeViewModel: HomeViewModel = viewModel()
+                val homeViewModel: HomeViewModel = viewModel(
+                    factory = HomeViewModelFactory(app.scheduleRepository),
+                )
                 val uiState = homeViewModel.uiState.collectAsStateWithLifecycle()
                 HomeScreen(state = uiState.value)
             }

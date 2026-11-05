@@ -137,7 +137,7 @@ class ScheduleMessageIngestionServiceTest {
             flowOf(revisions.filter { it.scheduleDate == date })
 
         override fun observeEffectiveQueues(date: String): Flow<List<EffectiveQueueEntity>> =
-            flowOf(getEffectiveQueues(date))
+            flowOf(queues.filterKeys { it.first == date }.values.toList())
 
         override suspend fun getEffectiveQueues(date: String): List<EffectiveQueueEntity> =
             queues.filterKeys { it.first == date }.values.toList()

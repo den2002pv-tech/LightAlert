@@ -16,12 +16,14 @@ import androidx.room.PrimaryKey
         ),
     ],
     indices = [
+        Index(value = ["sourceMessageKey"]),
         Index(value = ["scheduleDate"]),
         Index(value = ["parsedAtEpochMillis"]),
     ],
 )
 data class ScheduleRevisionEntity(
     @PrimaryKey
+    val revisionKey: String,
     val sourceMessageKey: String,
     val scheduleDate: String,
     /** JSON array of parsed queues and their minute-based intervals. */

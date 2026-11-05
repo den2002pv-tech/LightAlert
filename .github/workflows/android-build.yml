@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/android-foundation
   pull_request:
     branches:
       - main

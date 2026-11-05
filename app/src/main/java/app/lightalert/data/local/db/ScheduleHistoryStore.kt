@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
  * Implementations must not delete effective queues omitted from a partial update.
  */
 interface ScheduleHistoryStore {
+    suspend fun hasSourceMessage(sourceMessageKey: String): Boolean
+
     suspend fun recordSourceMessage(message: SourceMessageEntity)
 
     suspend fun recordRevision(
@@ -14,11 +16,6 @@ interface ScheduleHistoryStore {
         revision: ScheduleRevisionEntity,
     )
 
-    /**
-     * Atomically stores the source message, accepted parsed revision and the
-     * effective queue rows produced by the merger. All queue rows must belong
-     * to this revision's date and source message.
-     */
     suspend fun recordAcceptedRevision(
         message: SourceMessageEntity,
         revision: ScheduleRevisionEntity,
@@ -28,10 +25,7 @@ interface ScheduleHistoryStore {
     suspend fun saveEffectiveQueues(queues: List<EffectiveQueueEntity>)
 
     fun observeSourceMessages(): Flow<List<SourceMessageEntity>>
-
     fun observeRevisions(date: String): Flow<List<ScheduleRevisionEntity>>
-
     fun observeEffectiveQueues(date: String): Flow<List<EffectiveQueueEntity>>
-
     suspend fun getEffectiveQueues(date: String): List<EffectiveQueueEntity>
 }

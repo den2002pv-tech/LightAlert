@@ -168,7 +168,7 @@ class TdlibTelegramClient(
     }
 
     private suspend fun initializeTdlibParameters() {
-        val tdlibDirectory = File(appContext.filesDir, "tdlib").apply { mkdirs() }
+        val tdlibDirectory = File(appContext.filesDir, "tdlib-secure").apply { mkdirs() }
         val filesDirectory = File(tdlibDirectory, "files").apply { mkdirs() }
         val databaseKey = databaseKeyStore.getOrCreateDatabaseKey()
 

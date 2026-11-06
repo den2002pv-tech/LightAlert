@@ -2,6 +2,7 @@ package app.lightalert.data.telegram
 
 import android.content.Context
 import android.os.Build
+import app.lightalert.BuildConfig
 import app.lightalert.data.ingestion.IncomingScheduleMessage
 import app.lightalert.data.ingestion.IngestionResult
 import app.lightalert.data.ingestion.ScheduleMessageIngestionService
@@ -111,8 +112,8 @@ class TdlibTelegramClient(
             "Telegram authorization is required before loading chats"
         }
 
-        val response = send(TdApi.GetChats(TdApi.ChatListMain(), limit.toLong()))
-        return response.chatIds.mapNotNull { chatId ->
+        val response = send(TdApi.GetChats(TdApi.ChatListMain(), limit))
+        return response.chatIds.toList().mapNotNull { chatId: Long ->
             runCatching { send(TdApi.GetChat(chatId)) as TdApi.Chat }.getOrNull()
         }.map { chat ->
             TelegramChatSummary(
@@ -214,6 +215,9 @@ class TdlibTelegramClient(
         val tdlibDirectory = File(appContext.filesDir, "tdlib-secure").apply { mkdirs() }
         val filesDirectory = File(tdlibDirectory, "files").apply { mkdirs() }
         val databaseKey = databaseKeyStore.getOrCreateDatabaseKey()
+        val apiConfig = checkNotNull(apiConfigStore.get()) {
+            "Telegram API configuration is missing"
+        }
 
         send(
             TdApi.SetTdlibParameters(

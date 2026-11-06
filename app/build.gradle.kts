@@ -1,15 +1,8 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
-}
-
-val telegramLocalProperties = Properties().apply {
-    val localFile = rootProject.file("local.properties")
-    if (localFile.isFile) localFile.inputStream().use { stream -> this.load(stream) }
 }
 
 android {
@@ -22,21 +15,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
-
-        val telegramApiId = telegramLocalProperties.getProperty("TELEGRAM_API_ID")
-            ?: providers.gradleProperty("TELEGRAM_API_ID").orNull
-            ?: providers.environmentVariable("TELEGRAM_API_ID").orNull
-            ?: "0"
-        val telegramApiHash = telegramLocalProperties.getProperty("TELEGRAM_API_HASH")
-            ?: providers.gradleProperty("TELEGRAM_API_HASH").orNull
-            ?: providers.environmentVariable("TELEGRAM_API_HASH").orNull
-            ?: ""
-        buildConfigField("int", "TELEGRAM_API_ID", "${telegramApiId.toIntOrNull() ?: 0}")
-        val escapedTelegramApiHash = telegramApiHash
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "")
-        buildConfigField("String", "TELEGRAM_API_HASH", "\"$escapedTelegramApiHash\"")
 
         ndk {
             // Keep the APK lean while supporting ARM phones and tablets.

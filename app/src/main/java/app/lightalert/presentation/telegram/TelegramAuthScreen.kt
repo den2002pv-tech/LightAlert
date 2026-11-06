@@ -39,7 +39,7 @@ fun TelegramAuthScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var code by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 

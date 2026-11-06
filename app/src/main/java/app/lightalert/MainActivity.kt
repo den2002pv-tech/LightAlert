@@ -31,12 +31,13 @@ class MainActivity : ComponentActivity() {
 
                 if (showTelegramConnection) {
                     val telegramViewModel: TelegramAuthViewModel = viewModel(
-                        factory = TelegramAuthViewModelFactory(app.telegramClient),
+                        factory = TelegramAuthViewModelFactory(app.telegramClient, app.telegramApiConfigStore),
                     )
                     val telegramState = telegramViewModel.uiState.collectAsStateWithLifecycle()
                     TelegramAuthScreen(
                         state = telegramState.value,
                         onBack = { showTelegramConnection = false },
+                        onSaveApiConfig = telegramViewModel::saveApiConfig,
                         onSubmitPhone = telegramViewModel::submitPhoneNumber,
                         onSubmitCode = telegramViewModel::submitCode,
                         onSubmitPassword = telegramViewModel::submitPassword,

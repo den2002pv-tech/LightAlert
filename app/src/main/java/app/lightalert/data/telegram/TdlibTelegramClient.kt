@@ -2,7 +2,6 @@ package app.lightalert.data.telegram
 
 import android.content.Context
 import android.os.Build
-import app.lightalert.BuildConfig
 import app.lightalert.data.ingestion.IncomingScheduleMessage
 import app.lightalert.data.ingestion.IngestionResult
 import app.lightalert.data.ingestion.ScheduleMessageIngestionService
@@ -38,8 +37,7 @@ import kotlin.coroutines.resumeWithException
 class TdlibTelegramClient(
     context: Context,
     private val ingestionService: ScheduleMessageIngestionService,
-    private val apiId: Int = BuildConfig.TELEGRAM_API_ID,
-    private val apiHash: String = BuildConfig.TELEGRAM_API_HASH,
+    private val apiConfigStore: TelegramApiConfigStore,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val appContext = context.applicationContext
@@ -71,7 +69,8 @@ class TdlibTelegramClient(
     @Synchronized
     fun start(): Boolean {
         if (client != null) return true
-        if (apiId <= 0 || apiHash.isBlank()) {
+        val apiConfig = runCatching { apiConfigStore.get() }.getOrNull()
+        if (apiConfig == null || apiConfig.apiId <= 0 || apiConfig.apiHash.isBlank()) {
             _authState.value = TelegramAuthState.NOT_CONFIGURED
             return false
         }
@@ -199,8 +198,8 @@ class TdlibTelegramClient(
                 true,
                 true,
                 false,
-                apiId,
-                apiHash,
+                apiConfig.apiId,
+                apiConfig.apiHash,
                 Locale.getDefault().toLanguageTag().ifBlank { "en" },
                 Build.MODEL?.takeIf(String::isNotBlank) ?: "Android",
                 Build.VERSION.RELEASE.orEmpty(),

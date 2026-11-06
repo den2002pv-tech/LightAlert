@@ -101,6 +101,33 @@ class TdlibTelegramClient(
         }
     }
 
+    /**
+     * Loads the most recent dialogs from Telegram for the channel-selection UI.
+     * This method is deliberately read-only: it does not subscribe to any chat.
+     */
+    suspend fun loadChats(limit: Int = 100): List<TelegramChatSummary> {
+        require(limit in 1..500) { "Chat limit must be between 1 and 500" }
+        check(authState.value == TelegramAuthState.READY) {
+            "Telegram authorization is required before loading chats"
+        }
+
+        val response = send(TdApi.GetChats(TdApi.ChatListMain(), limit.toLong()))
+        return response.chatIds.mapNotNull { chatId ->
+            runCatching { send(TdApi.GetChat(chatId)) as TdApi.Chat }.getOrNull()
+        }.map { chat ->
+            TelegramChatSummary(
+                id = chat.id,
+                title = chat.title,
+                unreadCount = chat.unreadCount,
+                lastMessageDateEpochSeconds = chat.lastMessage?.date?.toLong(),
+                lastMessagePreview = when (val content = chat.lastMessage?.content) {
+                    is TdApi.MessageText -> content.text.text
+                    else -> null
+                },
+            )
+        }
+    }
+
     fun setSelectedChatIds(chatIds: Set<Long>) {
         selectedChatIds = chatIds.toSet()
     }

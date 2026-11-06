@@ -23,7 +23,8 @@ android {
             ?: providers.environmentVariable("TELEGRAM_API_HASH").orNull
             ?: ""
         buildConfigField("int", "TELEGRAM_API_ID", "${telegramApiId.toIntOrNull() ?: 0}")
-        val escapedTelegramApiHash = telegramApiHash.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "")\n        buildConfigField("String", "TELEGRAM_API_HASH", "\"${escapedTelegramApiHash}\"")
+        val escapedTelegramApiHash = telegramApiHash.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "")
+        buildConfigField("String", "TELEGRAM_API_HASH", "\"${escapedTelegramApiHash}\"")
 
         ndk {
             // Keep the APK lean while supporting ARM phones and tablets.

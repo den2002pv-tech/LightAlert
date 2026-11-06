@@ -88,8 +88,10 @@ class TdlibTelegramClient(
             )
             _authState.value = TelegramAuthState.INITIALIZING
             client?.send(TdApi.GetAuthorizationState()) { result ->
-                if (result is TdApi.Error) {
-                    _authState.value = TelegramAuthState.ERROR
+                when (result) {
+                    is TdApi.AuthorizationState ->
+                        updates.trySend(TdApi.UpdateAuthorizationState(result))
+                    is TdApi.Error -> _authState.value = TelegramAuthState.ERROR
                 }
             }
             true
@@ -102,6 +104,21 @@ class TdlibTelegramClient(
 
     fun setSelectedChatIds(chatIds: Set<Long>) {
         selectedChatIds = chatIds.toSet()
+    }
+
+    fun refreshAuthorizationState() {
+        val activeClient = client
+        if (activeClient == null) {
+            start()
+            return
+        }
+        activeClient.send(TdApi.GetAuthorizationState()) { result ->
+            when (result) {
+                is TdApi.AuthorizationState ->
+                    updates.trySend(TdApi.UpdateAuthorizationState(result))
+                is TdApi.Error -> _authState.value = TelegramAuthState.ERROR
+            }
+        }
     }
 
     suspend fun submitPhoneNumber(phoneNumber: String) {

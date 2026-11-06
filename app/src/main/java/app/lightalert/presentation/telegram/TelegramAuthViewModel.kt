@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.lightalert.data.telegram.TdlibTelegramClient
 import app.lightalert.data.telegram.TelegramAuthState
+import app.lightalert.data.telegram.TelegramApiConfigStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -18,6 +19,7 @@ data class TelegramAuthUiState(
 
 class TelegramAuthViewModel(
     private val telegramClient: TdlibTelegramClient,
+    private val apiConfigStore: TelegramApiConfigStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TelegramAuthUiState())
     val uiState = _uiState.asStateFlow()
@@ -29,6 +31,25 @@ class TelegramAuthViewModel(
             }
         }
         telegramClient.start()
+    }
+
+    fun saveApiConfig(apiId: String, apiHash: String) {
+        if (_uiState.value.isSubmitting) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+            try {
+                apiConfigStore.save(apiId.toInt(), apiHash.trim())
+                check(telegramClient.start()) {
+                    "Не удалось запустить TDLib. Проверьте параметры и повторите попытку."
+                }
+            } catch (exception: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = exception.message ?: "Не удалось сохранить настройки API.")
+                }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
+            }
+        }
     }
 
     fun submitPhoneNumber(value: String) = submit {
@@ -67,11 +88,12 @@ class TelegramAuthViewModel(
 
 class TelegramAuthViewModelFactory(
     private val telegramClient: TdlibTelegramClient,
+    private val apiConfigStore: TelegramApiConfigStore,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(TelegramAuthViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return TelegramAuthViewModel(telegramClient) as T
+            return TelegramAuthViewModel(telegramClient, apiConfigStore) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }

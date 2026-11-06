@@ -31,7 +31,7 @@ class TelegramApiConfigStore(context: Context) {
             GCMParameterSpec(TAG_BITS, decoded.copyOfRange(0, IV_SIZE)),
         )
         val plain = cipher.doFinal(decoded.copyOfRange(IV_SIZE, decoded.size))
-        val parts = plain.toString(Charsets.UTF_8).split("\\n", limit = 2)
+        val parts = plain.toString(Charsets.UTF_8).split("\n", limit = 2)
         val id = parts.firstOrNull()?.toIntOrNull() ?: return null
         val hash = parts.getOrNull(1) ?: return null
         return TelegramApiConfig(id, hash)
@@ -45,7 +45,7 @@ class TelegramApiConfigStore(context: Context) {
         }
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
-        val plain = "$apiId\\n$apiHash".toByteArray(Charsets.UTF_8)
+        val plain = "$apiId\n$apiHash".toByteArray(Charsets.UTF_8)
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(plain), Base64.NO_WRAP)
         check(preferences.edit().putString(CONFIG_VALUE, encoded).commit()) {
             "Не удалось сохранить параметры Telegram API"

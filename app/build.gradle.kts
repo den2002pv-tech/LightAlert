@@ -15,6 +15,20 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+
+        val telegramApiId = providers.gradleProperty("TELEGRAM_API_ID").orNull
+            ?: providers.environmentVariable("TELEGRAM_API_ID").orNull
+            ?: "0"
+        val telegramApiHash = providers.gradleProperty("TELEGRAM_API_HASH").orNull
+            ?: providers.environmentVariable("TELEGRAM_API_HASH").orNull
+            ?: ""
+        buildConfigField("int", "TELEGRAM_API_ID", "${telegramApiId.toIntOrNull() ?: 0}")
+        buildConfigField("String", "TELEGRAM_API_HASH", "\"${telegramApiHash}\"")
+
+        ndk {
+            // Keep the APK lean while supporting ARM phones and tablets.
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     buildFeatures {
@@ -45,6 +59,8 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.gson)
+    implementation(libs.tdlib.core)
+    implementation(libs.tdlib.ktx)
 
     ksp(libs.androidx.room.compiler)
 

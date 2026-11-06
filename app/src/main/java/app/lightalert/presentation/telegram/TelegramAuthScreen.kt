@@ -33,12 +33,15 @@ import app.lightalert.data.telegram.TelegramAuthState
 fun TelegramAuthScreen(
     state: TelegramAuthUiState,
     onBack: () -> Unit,
+    onSaveApiConfig: (String, String) -> Unit,
     onSubmitPhone: (String) -> Unit,
     onSubmitCode: (String) -> Unit,
     onSubmitPassword: (String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var apiId by remember { mutableStateOf("") }
+    var apiHash by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var code by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -69,10 +72,37 @@ fun TelegramAuthScreen(
             when (state.authState) {
                 TelegramAuthState.NOT_CONFIGURED -> {
                     Text(
-                        text = "Для подключения требуется настроить TELEGRAM_API_ID и " +
-                            "TELEGRAM_API_HASH в локальном файле local.properties и пересобрать приложение.",
+                        text = "Получите API ID и API Hash на my.telegram.org/apps. " +
+                            "Введите их здесь один раз — приложение сохранит параметры в зашифрованном виде.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    OutlinedTextField(
+                        value = apiId,
+                        onValueChange = { apiId = it.filter(Char::isDigit).take(10) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Telegram API ID") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = apiHash,
+                        onValueChange = { apiHash = it.filter { char -> char.isLetterOrDigit() }.take(32) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Telegram API Hash") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                    )
+                    Button(
+                        onClick = {
+                            onSaveApiConfig(apiId, apiHash)
+                            apiHash = ""
+                        },
+                        enabled = apiId.toIntOrNull() != null && apiId.toInt() > 0 &&
+                            apiHash.length == 32 && !state.isSubmitting,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Сохранить и подключить")
+                    }
                 }
 
                 TelegramAuthState.WAITING_FOR_PHONE -> {

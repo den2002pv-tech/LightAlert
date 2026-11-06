@@ -16,6 +16,9 @@ import app.lightalert.presentation.home.HomeViewModelFactory
 import app.lightalert.presentation.telegram.TelegramAuthScreen
 import app.lightalert.presentation.telegram.TelegramAuthViewModel
 import app.lightalert.presentation.telegram.TelegramAuthViewModelFactory
+import app.lightalert.presentation.telegram.TelegramChannelScreen
+import app.lightalert.presentation.telegram.TelegramChannelViewModel
+import app.lightalert.presentation.telegram.TelegramChannelViewModelFactory
 import app.lightalert.presentation.theme.LightAlertTheme
 
 class MainActivity : ComponentActivity() {
@@ -28,8 +31,25 @@ class MainActivity : ComponentActivity() {
         setContent {
             LightAlertTheme {
                 var showTelegramConnection by rememberSaveable { mutableStateOf(false) }
+                var showChannelSelection by rememberSaveable { mutableStateOf(false) }
 
-                if (showTelegramConnection) {
+                if (showChannelSelection) {
+                    val channelViewModel: TelegramChannelViewModel = viewModel(
+                        factory = TelegramChannelViewModelFactory(
+                            app.telegramClient,
+                            app.telegramChatSelectionStore,
+                        ),
+                    )
+                    val channelState = channelViewModel.uiState.collectAsStateWithLifecycle()
+                    TelegramChannelScreen(
+                        state = channelState.value,
+                        onBack = { showChannelSelection = false; showTelegramConnection = true },
+                        onSearchChange = channelViewModel::setSearchQuery,
+                        onToggle = channelViewModel::toggleChat,
+                        onRefresh = channelViewModel::refresh,
+                        onSave = channelViewModel::saveSelection,
+                    )
+                } else if (showTelegramConnection) {
                     val telegramViewModel: TelegramAuthViewModel = viewModel(
                         factory = TelegramAuthViewModelFactory(app.telegramClient, app.telegramApiConfigStore),
                     )
@@ -42,6 +62,7 @@ class MainActivity : ComponentActivity() {
                         onSubmitCode = telegramViewModel::submitCode,
                         onSubmitPassword = telegramViewModel::submitPassword,
                         onRetry = telegramViewModel::retryConnection,
+                        onSelectChannels = { showChannelSelection = true },
                     )
                 } else {
                     val homeViewModel: HomeViewModel = viewModel(

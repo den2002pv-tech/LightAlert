@@ -112,8 +112,20 @@ class TdlibTelegramClient(
             "Telegram authorization is required before loading chats"
         }
 
-        val response = send(TdApi.GetChats(TdApi.ChatListMain(), limit))
-        return response.chatIds.toList().mapNotNull { chatId: Long ->
+        // GetChats only returns dialogs that TDLib has already loaded into its
+        // local cache. Explicitly load both active and archived dialog lists first.
+        // A 404 from LoadChats means there are no more dialogs in that list.
+        val chatLists = listOf(TdApi.ChatListMain(), TdApi.ChatListArchive())
+        chatLists.forEach { chatList ->
+            runCatching { send(TdApi.LoadChats(chatList, limit)) }
+        }
+
+        val chatIds = chatLists.flatMap { chatList ->
+            runCatching { send(TdApi.GetChats(chatList, limit)).chatIds.toList() }
+                .getOrDefault(emptyList())
+        }.distinct()
+
+        return chatIds.mapNotNull { chatId: Long ->
             runCatching { send(TdApi.GetChat(chatId)) as TdApi.Chat }.getOrNull()
         }.filter { chat ->
             chat.type is TdApi.ChatTypeBasicGroup || chat.type is TdApi.ChatTypeSupergroup

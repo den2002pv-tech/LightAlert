@@ -1,15 +1,16 @@
-val releaseStorePath = System.getenv("LIGHTALERT_KEYSTORE_PATH")
-val releaseStorePassword = System.getenv("LIGHTALERT_KEYSTORE_PASSWORD")
-val releaseKeyAlias = System.getenv("LIGHTALERT_KEY_ALIAS")
-val releaseKeyPassword = System.getenv("LIGHTALERT_KEY_PASSWORD")
-val hasReleaseSigning = listOf(releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
 }
+
+val releaseStorePath = System.getenv("LIGHTALERT_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("LIGHTALERT_KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("LIGHTALERT_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("LIGHTALERT_KEY_PASSWORD")
+val hasReleaseSigning = listOf(releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }
+
 
 android {
     namespace = "app.lightalert"

@@ -1,0 +1,204 @@
+package app.lightalert.presentation.telegram
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.unit.dp
+import app.lightalert.data.telegram.TelegramAuthState
+
+@Composable
+fun TelegramAuthScreen(
+    state: TelegramAuthUiState,
+    onBack: () -> Unit,
+    onSubmitPhone: (String) -> Unit,
+    onSubmitCode: (String) -> Unit,
+    onSubmitPassword: (String) -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var code by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+
+    Scaffold(modifier = modifier) { contentPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            TextButton(onClick = onBack) {
+                Text("Назад")
+            }
+
+            Text(
+                text = "Подключение Telegram",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                text = state.authState.toDisplayText(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            when (state.authState) {
+                TelegramAuthState.NOT_CONFIGURED -> {
+                    Text(
+                        text = "Для подключения требуется настроить TELEGRAM_API_ID и " +
+                            "TELEGRAM_API_HASH в локальном файле local.properties и пересобрать приложение.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+
+                TelegramAuthState.WAITING_FOR_PHONE -> {
+                    OutlinedTextField(
+                        value = phoneNumber,
+                        onValueChange = { phoneNumber = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Номер телефона") },
+                        placeholder = { Text("+380...") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        singleLine = true,
+                    )
+                    Button(
+                        onClick = onSubmitPhone.bind(phoneNumber),
+                        enabled = phoneNumber.isNotBlank() && !state.isSubmitting,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Отправить код")
+                    }
+                }
+
+                TelegramAuthState.WAITING_FOR_CODE -> {
+                    OutlinedTextField(
+                        value = code,
+                        onValueChange = { code = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Код подтверждения") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        singleLine = true,
+                    )
+                    Button(
+                        onClick = {
+                            val submittedCode = code
+                            code = ""
+                            onSubmitCode(submittedCode)
+                        },
+                        enabled = code.isNotBlank() && !state.isSubmitting,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Подтвердить")
+                    }
+                }
+
+                TelegramAuthState.WAITING_FOR_PASSWORD -> {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Пароль двухэтапной аутентификации") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        singleLine = true,
+                    )
+                    Button(
+                        onClick = {
+                            val submittedPassword = password
+                            password = ""
+                            onSubmitPassword(submittedPassword)
+                        },
+                        enabled = password.isNotBlank() && !state.isSubmitting,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Подтвердить")
+                    }
+                }
+
+                TelegramAuthState.ERROR, TelegramAuthState.CLOSED -> {
+                    Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+                        Text("Повторить подключение")
+                    }
+                }
+
+                TelegramAuthState.READY -> {
+                    Text(
+                        text = "Telegram подключён. Следующий шаг — выбор каналов.",
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+
+                TelegramAuthState.WAITING_FOR_OTHER_DEVICE_CONFIRMATION -> {
+                    Text("Подтвердите вход в Telegram на другом устройстве.")
+                }
+
+                TelegramAuthState.INITIALIZING,
+                TelegramAuthState.CLOSING,
+                TelegramAuthState.UNKNOWN -> {
+                    CircularProgressIndicator()
+                }
+            }
+
+            state.errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            if (state.isSubmitting) {
+                Spacer(modifier = Modifier.height(4.dp))
+                CircularProgressIndicator()
+            }
+
+            Text(
+                text = "Авторизация выполняется непосредственно через TDLib. " +
+                    "Код и пароль не сохраняются приложением.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun TelegramAuthState.toDisplayText(): String = when (this) {
+    TelegramAuthState.NOT_CONFIGURED -> "Не настроены параметры Telegram API"
+    TelegramAuthState.INITIALIZING -> "Подготовка защищённого подключения…"
+    TelegramAuthState.WAITING_FOR_PHONE -> "Введите номер телефона аккаунта Telegram"
+    TelegramAuthState.WAITING_FOR_CODE -> "Введите код, отправленный Telegram"
+    TelegramAuthState.WAITING_FOR_PASSWORD -> "Требуется пароль двухэтапной аутентификации"
+    TelegramAuthState.WAITING_FOR_OTHER_DEVICE_CONFIRMATION ->
+        "Ожидается подтверждение входа на другом устройстве"
+    TelegramAuthState.READY -> "Подключение активно"
+    TelegramAuthState.CLOSING -> "Завершение подключения…"
+    TelegramAuthState.CLOSED -> "Подключение закрыто"
+    TelegramAuthState.ERROR -> "Не удалось подключиться к Telegram"
+    TelegramAuthState.UNKNOWN -> "Получено неизвестное состояние авторизации"
+}
+
+private fun ((String) -> Unit).bind(value: String): () -> Unit = { this(value) }

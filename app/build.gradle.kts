@@ -73,7 +73,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.gson)
     implementation(libs.tdlib.core)
-    implementation(libs.tdlib.ktx)
 
     ksp(libs.androidx.room.compiler)
 

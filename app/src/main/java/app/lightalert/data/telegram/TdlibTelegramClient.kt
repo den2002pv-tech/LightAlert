@@ -196,8 +196,7 @@ class TdlibTelegramClient(
         val sentAt = message.date.toLong() * 1_000L
         val editedAt = message.editDate
             .takeIf { it > 0 }
-            .toLong()
-            .takeIf { it > 0L }
+            ?.toLong()
             ?.times(1_000L)
 
         val result = runCatching {
@@ -226,14 +225,15 @@ class TdlibTelegramClient(
             }
 
             activeClient.send(function) { result ->
-                if (!continuation.isActive) return@send
-                if (result is TdApi.Error) {
-                    continuation.resumeWithException(
-                        TdlibRequestException(result.code, result.message),
-                    )
-                } else {
-                    @Suppress("UNCHECKED_CAST")
-                    continuation.resume(result as T)
+                if (continuation.isActive) {
+                    if (result is TdApi.Error) {
+                        continuation.resumeWithException(
+                            TdlibRequestException(result.code, result.message),
+                        )
+                    } else {
+                        @Suppress("UNCHECKED_CAST")
+                        continuation.resume(result as T)
+                    }
                 }
             }
         }

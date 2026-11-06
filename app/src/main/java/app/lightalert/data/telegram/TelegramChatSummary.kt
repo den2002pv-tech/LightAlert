@@ -7,6 +7,7 @@ package app.lightalert.data.telegram
 data class TelegramChatSummary(
     val id: Long,
     val title: String,
+    val kind: String,
     val unreadCount: Int,
     val lastMessageDateEpochSeconds: Long?,
     val lastMessagePreview: String?,

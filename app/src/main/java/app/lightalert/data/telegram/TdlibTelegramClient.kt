@@ -87,6 +87,11 @@ class TdlibTelegramClient(
                 { _authState.value = TelegramAuthState.ERROR },
             )
             _authState.value = TelegramAuthState.INITIALIZING
+            client?.send(TdApi.GetAuthorizationState()) { result ->
+                if (result is TdApi.Error) {
+                    _authState.value = TelegramAuthState.ERROR
+                }
+            }
             true
         }.getOrElse {
             client = null

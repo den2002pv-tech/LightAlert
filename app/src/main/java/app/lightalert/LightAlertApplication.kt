@@ -23,4 +23,8 @@ class LightAlertApplication : Application() {
     val scheduleMessageIngestionService: ScheduleMessageIngestionService by lazy {
         ScheduleMessageIngestionService(scheduleHistoryStore)
     }
+
+    val telegramClient: TdlibTelegramClient by lazy {
+        TdlibTelegramClient(applicationContext, scheduleMessageIngestionService)
+    }
 }

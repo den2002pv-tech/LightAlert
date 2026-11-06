@@ -1,16 +1,17 @@
 package app.lightalert.data.telegram
 
 import android.content.Context
+import android.os.Build
 import app.lightalert.BuildConfig
 import app.lightalert.data.ingestion.IncomingScheduleMessage
 import app.lightalert.data.ingestion.IngestionResult
 import app.lightalert.data.ingestion.ScheduleMessageIngestionService
-import io.github.tdlibandroid.ktx.TdClient
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -18,16 +19,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
 import java.io.File
+import java.util.Locale
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Owns the on-device TDLib session and forwards selected text-channel messages
- * into the existing schedule ingestion pipeline.
+ * into the schedule ingestion pipeline.
  *
- * This class deliberately does not request phone numbers or authentication
- * codes itself. The UI must collect [authState] and submit those values through
- * the explicit methods below.
+ * TDLib is initialized through its low-level Java client so the database
+ * encryption key is supplied by [TdlibDatabaseKeyStore], not by a wrapper
+ * that hardcodes an empty key.
  */
 class TdlibTelegramClient(
     context: Context,
@@ -38,6 +44,9 @@ class TdlibTelegramClient(
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private val databaseKeyStore = TdlibDatabaseKeyStore(appContext)
+    private val updates = Channel<TdApi.Update>(Channel.UNLIMITED)
+
     private val _authState = MutableStateFlow(TelegramAuthState.NOT_CONFIGURED)
     val authState: StateFlow<TelegramAuthState> = _authState.asStateFlow()
 
@@ -48,8 +57,18 @@ class TdlibTelegramClient(
     private var selectedChatIds: Set<Long> = emptySet()
 
     @Volatile
-    private var client: TdClient? = null
+    private var client: Client? = null
 
+    init {
+        scope.launch {
+            for (update in updates) {
+                runCatching { handleUpdate(update) }
+                    .onFailure { _authState.value = TelegramAuthState.ERROR }
+            }
+        }
+    }
+
+    @Synchronized
     fun start(): Boolean {
         if (client != null) return true
         if (apiId <= 0 || apiHash.isBlank()) {
@@ -59,22 +78,17 @@ class TdlibTelegramClient(
 
         return runCatching {
             System.loadLibrary("tdjni")
-            val tdClient = TdClient(
-                filesDir = File(appContext.filesDir, "tdlib").absolutePath,
-                verbosityLevel = 1,
-                apiId = apiId,
-                apiHash = apiHash,
+            Client.execute(TdApi.SetLogVerbosityLevel(0))
+            client = Client.create(
+                { update ->
+                    if (update is TdApi.Update) updates.trySend(update)
+                },
+                { _authState.value = TelegramAuthState.ERROR },
+                { _authState.value = TelegramAuthState.ERROR },
             )
-            client = tdClient
-
-            // Subscribe before init() so the first authorization update is not lost.
-            scope.launch {
-                tdClient.updates.collect { update -> handleUpdate(update) }
-            }
-            tdClient.init()
             _authState.value = TelegramAuthState.INITIALIZING
             true
-        }.getOrElse { error ->
+        }.getOrElse {
             client = null
             _authState.value = TelegramAuthState.ERROR
             false
@@ -88,60 +102,89 @@ class TdlibTelegramClient(
     suspend fun submitPhoneNumber(phoneNumber: String) {
         require(phoneNumber.isNotBlank()) { "Phone number must not be blank" }
         require(phoneNumber.length <= 32) { "Phone number is too long" }
-        require(phoneNumber.all { it.isDigit() || it == '+' || it == ' ' || it == '-' || it == '(' || it == ')' }) {
-            "Phone number contains unsupported characters"
-        }
+        require(phoneNumber.all {
+            it.isDigit() || it == '+' || it == ' ' || it == '-' || it == '(' || it == ')'
+        }) { "Phone number contains unsupported characters" }
         requireAuthState(TelegramAuthState.WAITING_FOR_PHONE)
-        requireClient().send(TdApi.SetAuthenticationPhoneNumber(phoneNumber.trim(), null))
+        send(TdApi.SetAuthenticationPhoneNumber(phoneNumber.trim(), null))
     }
 
     suspend fun submitCode(code: String) {
         require(code.isNotBlank()) { "Authentication code must not be blank" }
         require(code.length <= 16) { "Authentication code is too long" }
         requireAuthState(TelegramAuthState.WAITING_FOR_CODE)
-        requireClient().send(TdApi.CheckAuthenticationCode(code.trim()))
+        send(TdApi.CheckAuthenticationCode(code.trim()))
     }
 
     suspend fun submitPassword(password: String) {
         require(password.isNotBlank()) { "Password must not be blank" }
         require(password.length <= 256) { "Password is too long" }
         requireAuthState(TelegramAuthState.WAITING_FOR_PASSWORD)
-        requireClient().send(TdApi.CheckAuthenticationPassword(password))
+        send(TdApi.CheckAuthenticationPassword(password))
     }
 
     suspend fun logOut() {
-        requireClient().send(TdApi.LogOut())
+        send(TdApi.LogOut())
     }
 
+    @Synchronized
     fun stop() {
-        client?.close()
+        val activeClient = client
         client = null
+        runCatching { activeClient?.send(TdApi.Close(), null) }
         _authState.value = TelegramAuthState.CLOSED
     }
 
     fun release() {
         stop()
+        updates.close()
         scope.cancel()
     }
 
     private suspend fun handleUpdate(update: TdApi.Update) {
         when (update) {
             is TdApi.UpdateAuthorizationState -> {
-                _authState.value = update.authorizationState.toLightAlertState()
+                val state = update.authorizationState
+                _authState.value = state.toLightAlertState()
+                if (state is TdApi.AuthorizationStateWaitTdlibParameters) {
+                    initializeTdlibParameters()
+                }
             }
 
-            is TdApi.UpdateNewMessage -> {
-                ingestIfSelected(update.message)
-            }
+            is TdApi.UpdateNewMessage -> ingestIfSelected(update.message)
 
             is TdApi.UpdateMessageContent -> {
-                val tdClient = client ?: return
                 val refreshed = runCatching {
-                    tdClient.send(TdApi.GetMessage(update.chatId, update.messageId))
+                    send(TdApi.GetMessage(update.chatId, update.messageId))
                 }.getOrNull()
                 if (refreshed is TdApi.Message) ingestIfSelected(refreshed)
             }
         }
+    }
+
+    private suspend fun initializeTdlibParameters() {
+        val tdlibDirectory = File(appContext.filesDir, "tdlib").apply { mkdirs() }
+        val filesDirectory = File(tdlibDirectory, "files").apply { mkdirs() }
+        val databaseKey = databaseKeyStore.getOrCreateDatabaseKey()
+
+        send(
+            TdApi.SetTdlibParameters(
+                false,
+                tdlibDirectory.absolutePath,
+                filesDirectory.absolutePath,
+                databaseKey,
+                true,
+                true,
+                true,
+                false,
+                apiId,
+                apiHash,
+                Locale.getDefault().toLanguageTag().ifBlank { "en" },
+                Build.MODEL?.takeIf(String::isNotBlank) ?: "Android",
+                Build.VERSION.RELEASE.orEmpty(),
+                BuildConfig.VERSION_NAME,
+            ),
+        )
     }
 
     private suspend fun ingestIfSelected(message: TdApi.Message) {
@@ -153,7 +196,8 @@ class TdlibTelegramClient(
         val sentAt = message.date.toLong() * 1_000L
         val editedAt = message.editDate
             .takeIf { it > 0 }
-            ?.toLong()
+            .toLong()
+            .takeIf { it > 0L }
             ?.times(1_000L)
 
         val result = runCatching {
@@ -171,8 +215,28 @@ class TdlibTelegramClient(
         _ingestionResults.emit(result)
     }
 
-    private fun requireClient(): TdClient =
-        checkNotNull(client) { "Telegram client is not started" }
+    private suspend fun <T : TdApi.Object> send(function: TdApi.Function<T>): T =
+        suspendCancellableCoroutine { continuation ->
+            val activeClient = client
+            if (activeClient == null) {
+                continuation.resumeWithException(
+                    IllegalStateException("Telegram client is not started"),
+                )
+                return@suspendCancellableCoroutine
+            }
+
+            activeClient.send(function) { result ->
+                if (!continuation.isActive) return@send
+                if (result is TdApi.Error) {
+                    continuation.resumeWithException(
+                        TdlibRequestException(result.code, result.message),
+                    )
+                } else {
+                    @Suppress("UNCHECKED_CAST")
+                    continuation.resume(result as T)
+                }
+            }
+        }
 
     private fun requireAuthState(expected: TelegramAuthState) {
         check(authState.value == expected) {
@@ -180,6 +244,11 @@ class TdlibTelegramClient(
         }
     }
 }
+
+class TdlibRequestException(
+    val code: Int,
+    override val message: String,
+) : Exception(message)
 
 enum class TelegramAuthState {
     NOT_CONFIGURED,

@@ -38,6 +38,7 @@ fun TelegramAuthScreen(
     onSubmitCode: (String) -> Unit,
     onSubmitPassword: (String) -> Unit,
     onRetry: () -> Unit,
+    onSelectChannels: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var apiId by remember { mutableStateOf("") }
@@ -177,9 +178,12 @@ fun TelegramAuthScreen(
 
                 TelegramAuthState.READY -> {
                     Text(
-                        text = "Telegram подключён. Следующий шаг — выбор каналов.",
+                        text = "Telegram подключён. Выберите каналы для мониторинга.",
                         color = MaterialTheme.colorScheme.primary,
                     )
+                    Button(onClick = onSelectChannels, modifier = Modifier.fillMaxWidth()) {
+                        Text("Выбрать каналы")
+                    }
                 }
 
                 TelegramAuthState.WAITING_FOR_OTHER_DEVICE_CONFIRMATION -> {

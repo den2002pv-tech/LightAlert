@@ -5,6 +5,11 @@ plugins {
     alias(libs.plugins.room)
 }
 
+val telegramLocalProperties = java.util.Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.isFile) localFile.inputStream().use { load(it) }
+}
+
 android {
     namespace = "app.lightalert"
     compileSdk = 36
@@ -16,10 +21,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
-        val telegramApiId = providers.gradleProperty("TELEGRAM_API_ID").orNull
+        val telegramApiId = telegramLocalProperties.getProperty("TELEGRAM_API_ID")
+            ?: providers.gradleProperty("TELEGRAM_API_ID").orNull
             ?: providers.environmentVariable("TELEGRAM_API_ID").orNull
             ?: "0"
-        val telegramApiHash = providers.gradleProperty("TELEGRAM_API_HASH").orNull
+        val telegramApiHash = telegramLocalProperties.getProperty("TELEGRAM_API_HASH")
+            ?: providers.gradleProperty("TELEGRAM_API_HASH").orNull
             ?: providers.environmentVariable("TELEGRAM_API_HASH").orNull
             ?: ""
         buildConfigField("int", "TELEGRAM_API_ID", "${telegramApiId.toIntOrNull() ?: 0}")

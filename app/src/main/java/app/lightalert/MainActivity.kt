@@ -4,11 +4,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.lightalert.presentation.home.HomeScreen
 import app.lightalert.presentation.home.HomeViewModel
 import app.lightalert.presentation.home.HomeViewModelFactory
+import app.lightalert.presentation.telegram.TelegramAuthScreen
+import app.lightalert.presentation.telegram.TelegramAuthViewModel
+import app.lightalert.presentation.telegram.TelegramAuthViewModelFactory
 import app.lightalert.presentation.theme.LightAlertTheme
 
 class MainActivity : ComponentActivity() {
@@ -20,11 +27,31 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LightAlertTheme {
-                val homeViewModel: HomeViewModel = viewModel(
-                    factory = HomeViewModelFactory(app.scheduleRepository),
-                )
-                val uiState = homeViewModel.uiState.collectAsStateWithLifecycle()
-                HomeScreen(state = uiState.value)
+                var showTelegramConnection by rememberSaveable { mutableStateOf(false) }
+
+                if (showTelegramConnection) {
+                    val telegramViewModel: TelegramAuthViewModel = viewModel(
+                        factory = TelegramAuthViewModelFactory(app.telegramClient),
+                    )
+                    val telegramState = telegramViewModel.uiState.collectAsStateWithLifecycle()
+                    TelegramAuthScreen(
+                        state = telegramState.value,
+                        onBack = { showTelegramConnection = false },
+                        onSubmitPhone = telegramViewModel::submitPhoneNumber,
+                        onSubmitCode = telegramViewModel::submitCode,
+                        onSubmitPassword = telegramViewModel::submitPassword,
+                        onRetry = telegramViewModel::retryConnection,
+                    )
+                } else {
+                    val homeViewModel: HomeViewModel = viewModel(
+                        factory = HomeViewModelFactory(app.scheduleRepository),
+                    )
+                    val homeState = homeViewModel.uiState.collectAsStateWithLifecycle()
+                    HomeScreen(
+                        state = homeState.value,
+                        onConnectTelegram = { showTelegramConnection = true },
+                    )
+                }
             }
         }
     }

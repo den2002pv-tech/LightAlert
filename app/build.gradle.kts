@@ -1,3 +1,9 @@
+val releaseStorePath = System.getenv("LIGHTALERT_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("LIGHTALERT_KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("LIGHTALERT_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("LIGHTALERT_KEY_PASSWORD")
+val hasReleaseSigning = listOf(releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -13,12 +19,30 @@ android {
         applicationId = "app.lightalert"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         ndk {
             // Keep the APK lean while supporting ARM phones and tablets.
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 

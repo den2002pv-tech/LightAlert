@@ -115,10 +115,13 @@ class TdlibTelegramClient(
         val response = send(TdApi.GetChats(TdApi.ChatListMain(), limit))
         return response.chatIds.toList().mapNotNull { chatId: Long ->
             runCatching { send(TdApi.GetChat(chatId)) as TdApi.Chat }.getOrNull()
+        }.filter { chat ->
+            chat.type is TdApi.ChatTypeBasicGroup || chat.type is TdApi.ChatTypeSupergroup
         }.map { chat ->
             TelegramChatSummary(
                 id = chat.id,
                 title = chat.title,
+                kind = if ((chat.type as? TdApi.ChatTypeSupergroup)?.isChannel == true) "Канал" else "Группа",
                 unreadCount = chat.unreadCount,
                 lastMessageDateEpochSeconds = chat.lastMessage?.date?.toLong(),
                 lastMessagePreview = when (val content = chat.lastMessage?.content) {

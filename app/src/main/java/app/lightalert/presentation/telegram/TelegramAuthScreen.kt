@@ -86,7 +86,7 @@ fun TelegramAuthScreen(
                     )
                     OutlinedTextField(
                         value = apiHash,
-                        onValueChange = { apiHash = it.filter { char -> char.isLetterOrDigit() }.take(32) },
+                        onValueChange = { apiHash = it.filter { char -> char in '0'..'9' || char in 'a'..'f' || char in 'A'..'F' }.take(32) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Telegram API Hash") },
                         visualTransformation = PasswordVisualTransformation(),

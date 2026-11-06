@@ -196,8 +196,7 @@ enum class TelegramAuthState {
 }
 
 private fun TdApi.AuthorizationState.toLightAlertState(): TelegramAuthState = when (this) {
-    is TdApi.AuthorizationStateWaitTdlibParameters,
-    is TdApi.AuthorizationStateWaitEncryptionKey -> TelegramAuthState.INITIALIZING
+    is TdApi.AuthorizationStateWaitTdlibParameters -> TelegramAuthState.INITIALIZING
     is TdApi.AuthorizationStateWaitPhoneNumber -> TelegramAuthState.WAITING_FOR_PHONE
     is TdApi.AuthorizationStateWaitCode -> TelegramAuthState.WAITING_FOR_CODE
     is TdApi.AuthorizationStateWaitPassword -> TelegramAuthState.WAITING_FOR_PASSWORD

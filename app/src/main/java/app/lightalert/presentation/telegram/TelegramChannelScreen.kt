@@ -132,6 +132,7 @@ private fun ChannelRow(
             Checkbox(checked = selected, onCheckedChange = { onToggle() })
             Column(modifier = Modifier.weight(1f)) {
                 Text(chat.title, fontWeight = FontWeight.SemiBold)
+                Text(chat.kind, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 val details = buildString {
                     if (chat.unreadCount > 0) append("Непрочитано: ${chat.unreadCount}")
                     chat.lastMessagePreview?.takeIf(String::isNotBlank)?.let {

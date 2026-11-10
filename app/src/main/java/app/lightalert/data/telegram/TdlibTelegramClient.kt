@@ -130,16 +130,38 @@ class TdlibTelegramClient(
         }.filter { chat ->
             chat.type is TdApi.ChatTypeBasicGroup || chat.type is TdApi.ChatTypeSupergroup
         }.map { chat ->
+            val chatType = chat.type
+            val isChannel = (chatType as? TdApi.ChatTypeSupergroup)?.isChannel == true
+            val isSupergroup = chatType is TdApi.ChatTypeSupergroup && !isChannel
+            val isBasicGroup = chatType is TdApi.ChatTypeBasicGroup
+            val isArchived = chat.isArchived == true
+
+            // Try to get profile photo path
+            val avatarPath = if (chat.photo != null && chat.photo.small != null) {
+                chat.photo.small.local.path.takeIf { it.isNotBlank() }
+            } else null
+
             TelegramChatSummary(
                 id = chat.id,
                 title = chat.title,
-                kind = if ((chat.type as? TdApi.ChatTypeSupergroup)?.isChannel == true) "Канал" else "Группа",
+                kind = when {
+                    isChannel -> "Канал"
+                    isSupergroup -> "Супергруппа"
+                    isBasicGroup -> "Группа"
+                    else -> "Чат"
+                },
+                username = chat.usernames?.firstOrNull()?.username,
+                isArchived = isArchived,
+                isChannel = isChannel,
+                isSupergroup = isSupergroup,
+                isBasicGroup = isBasicGroup,
                 unreadCount = chat.unreadCount,
                 lastMessageDateEpochSeconds = chat.lastMessage?.date?.toLong(),
                 lastMessagePreview = when (val content = chat.lastMessage?.content) {
                     is TdApi.MessageText -> content.text.text
                     else -> null
                 },
+                avatarPath = avatarPath,
             )
         }
     }
@@ -310,6 +332,155 @@ class TdlibTelegramClient(
             "Authentication action is not valid in state ${authState.value}"
         }
     }
+
+    /**
+     * Search for public Telegram chats and channels by title or username.
+     * Returns a list of public chats sorted by relevance.
+     */
+    suspend fun searchPublicChats(query: String): List<TelegramChatSummary> {
+        require(query.isNotBlank()) { "Search query must not be blank" }
+        check(authState.value == TelegramAuthState.READY) {
+            "Telegram authorization is required before searching"
+        }
+
+        val result = runCatching { send(TdApi.SearchChats(query)) }.getOrNull()
+        return when (result) {
+            is TdApi.Chats -> result.chats
+                .filter { chat ->
+                    (chat.type is TdApi.ChatTypeBasicGroup || chat.type is TdApi.ChatTypeSupergroup) &&
+                        (chat.username != null || chat.title != null)
+                }
+                .map { chat ->
+                    val isChannel = (chat.type as? TdApi.ChatTypeSupergroup)?.isChannel == true
+                    TelegramChatSummary(
+                        id = chat.id,
+                        title = chat.title,
+                        kind = if (isChannel) "Канал" else "Группа",
+                        unreadCount = chat.unreadCount,
+                        lastMessageDateEpochSeconds = chat.lastMessage?.date?.toLong(),
+                        lastMessagePreview = when (val content = chat.lastMessage?.content) {
+                            is TdApi.MessageText -> content.text.text
+                            else -> null
+                        },
+                        avatarPath = null,
+                    )
+                }
+            else -> emptyList()
+        }
+    }
+
+    /**
+     * Search for a specific public Telegram chat or channel by username.
+     * Returns the first matching public chat.
+     */
+    suspend fun searchPublicChat(query: String): TelegramChatSummary? {
+        require(query.isNotBlank()) { "Search query must not be blank" }
+        check(authState.value == TelegramAuthState.READY) {
+            "Telegram authorization is required before searching"
+        }
+
+        val result = runCatching { send(TdApi.SearchPublicChat(query)) }.getOrNull()
+        return when (result) {
+            is TdApi.Chat -> {
+                val isChannel = result.type is TdApi.ChatTypeSupergroup && result.type.isChannel
+                TelegramChatSummary(
+                    id = result.id,
+                    title = result.title,
+                    kind = if (isChannel) "Канал" else "Группа",
+                    unreadCount = result.unreadCount,
+                    lastMessageDateEpochSeconds = result.lastMessage?.date?.toLong(),
+                    lastMessagePreview = when (val content = result.lastMessage?.content) {
+                        is TdApi.MessageText -> content.text.text
+                        else -> null
+                    },
+                    avatarPath = null,
+                )
+            }
+            else -> null
+        }
+    }
+
+    /**
+     * Join a Telegram chat by its public username (e.g., "t.me/username").
+     * This works for public channels and groups that don't require an invite.
+     */
+    suspend fun joinChatByUsername(username: String): TelegramChatSummary? {
+        require(username.isNotBlank()) { "Username must not be blank" }
+        check(authState.value == TelegramAuthState.READY) {
+            "Telegram authorization is required before joining a chat"
+        }
+
+        val result = runCatching { send(TdApi.JoinChat(username)) }.getOrNull()
+        return when (result) {
+            is TdApi.Chat -> {
+                val isChannel = result.type is TdApi.ChatTypeSupergroup && result.type.isChannel
+                TelegramChatSummary(
+                    id = result.id,
+                    title = result.title,
+                    kind = if (isChannel) "Канал" else "Группа",
+                    unreadCount = result.unreadCount,
+                    lastMessageDateEpochSeconds = result.lastMessage?.date?.toLong(),
+                    lastMessagePreview = when (val content = result.lastMessage?.content) {
+                        is TdApi.MessageText -> content.text.text
+                        else -> null
+                    },
+                    avatarPath = null,
+                )
+            }
+            is TdApi.Error -> {
+                throw TdlibRequestException(result.code, result.message)
+            }
+            else -> null
+        }
+    }
+
+    /**
+     * Join a Telegram chat by its invite link (e.g., "t.me/+invite_hash").
+     * This works for private groups that require an invite link.
+     */
+    suspend fun joinChatByInviteLink(inviteLink: String): TelegramChatSummary? {
+        require(inviteLink.isNotBlank()) { "Invite link must not be blank" }
+        check(authState.value == TelegramAuthState.READY) {
+            "Telegram authorization is required before joining a chat by invite link"
+        }
+
+        val result = runCatching { send(TdApi.JoinChatByInviteLink(inviteLink)) }.getOrNull()
+        return when (result) {
+            is TdApi.Chat -> {
+                val isChannel = result.type is TdApi.ChatTypeSupergroup && result.type.isChannel
+                TelegramChatSummary(
+                    id = result.id,
+                    title = result.title,
+                    kind = if (isChannel) "Канал" else "Группа",
+                    unreadCount = result.unreadCount,
+                    lastMessageDateEpochSeconds = result.lastMessage?.date?.toLong(),
+                    lastMessagePreview = when (val content = result.lastMessage?.content) {
+                        is TdApi.MessageText -> content.text.text
+                        else -> null
+                    },
+                    avatarPath = null,
+                )
+            }
+            is TdApi.Error -> {
+                throw TdlibRequestException(result.code, result.message)
+            }
+            else -> null
+        }
+    }
+
+    private fun TdApi.AuthorizationState.toLightAlertState(): TelegramAuthState = when (this) {
+        is TdApi.AuthorizationStateWaitTdlibParameters -> TelegramAuthState.INITIALIZING
+        is TdApi.AuthorizationStateWaitPhoneNumber -> TelegramAuthState.WAITING_FOR_PHONE
+        is TdApi.AuthorizationStateWaitCode -> TelegramAuthState.WAITING_FOR_CODE
+        is TdApi.AuthorizationStateWaitPassword -> TelegramAuthState.WAITING_FOR_PASSWORD
+        is TdApi.AuthorizationStateWaitOtherDeviceConfirmation ->
+            TelegramAuthState.WAITING_FOR_OTHER_DEVICE_CONFIRMATION
+        is TdApi.AuthorizationStateReady -> TelegramAuthState.READY
+        is TdApi.AuthorizationStateLoggingOut -> TelegramAuthState.CLOSING
+        is TdApi.AuthorizationStateClosing -> TelegramAuthState.CLOSING
+        is TdApi.AuthorizationStateClosed -> TelegramAuthState.CLOSED
+        else -> TelegramAuthState.UNKNOWN
+    }
 }
 
 class TdlibRequestException(
@@ -331,16 +502,4 @@ enum class TelegramAuthState {
     UNKNOWN,
 }
 
-private fun TdApi.AuthorizationState.toLightAlertState(): TelegramAuthState = when (this) {
-    is TdApi.AuthorizationStateWaitTdlibParameters -> TelegramAuthState.INITIALIZING
-    is TdApi.AuthorizationStateWaitPhoneNumber -> TelegramAuthState.WAITING_FOR_PHONE
-    is TdApi.AuthorizationStateWaitCode -> TelegramAuthState.WAITING_FOR_CODE
-    is TdApi.AuthorizationStateWaitPassword -> TelegramAuthState.WAITING_FOR_PASSWORD
-    is TdApi.AuthorizationStateWaitOtherDeviceConfirmation ->
-        TelegramAuthState.WAITING_FOR_OTHER_DEVICE_CONFIRMATION
-    is TdApi.AuthorizationStateReady -> TelegramAuthState.READY
-    is TdApi.AuthorizationStateLoggingOut -> TelegramAuthState.CLOSING
-    is TdApi.AuthorizationStateClosing -> TelegramAuthState.CLOSING
-    is TdApi.AuthorizationStateClosed -> TelegramAuthState.CLOSED
-    else -> TelegramAuthState.UNKNOWN
-}
+

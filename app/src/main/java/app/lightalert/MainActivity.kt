@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
                     showChannelSelection = false
                     showTelegramConnection = true
                 }
-                BackHandler(enabled = showTelegramConnection && !showChannelSelection) {
+                BackHandler(enabled = !showChannelSelection && showTelegramConnection) {
                     showTelegramConnection = false
                 }
 

@@ -73,7 +73,7 @@ class TelegramAuthViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(errorMessage = null) }
             try {
-                check(telegramClient.start()) {
+                check(telegramClient.restart()) {
                     "Не удалось подключиться к Telegram. Повторите попытку."
                 }
             } catch (exception: Exception) {

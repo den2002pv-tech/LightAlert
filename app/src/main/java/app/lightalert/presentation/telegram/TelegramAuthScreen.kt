@@ -20,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,8 +43,8 @@ fun TelegramAuthScreen(
     var apiId by remember { mutableStateOf("") }
     var apiHash by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
-    var code by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
     Scaffold(modifier = modifier) { contentPadding ->
         Column(

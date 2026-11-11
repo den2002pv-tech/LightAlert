@@ -39,6 +39,11 @@ class LightAlertApplication : Application() {
             applicationContext,
             scheduleMessageIngestionService,
             telegramApiConfigStore,
+            telegramChatSelectionStore,
         )
+    }
+    fun startTelegramIfConfigured() {
+        val hasConfig = runCatching { telegramApiConfigStore.get() != null }.getOrDefault(false)
+        if (hasConfig) telegramClient.start()
     }
 }

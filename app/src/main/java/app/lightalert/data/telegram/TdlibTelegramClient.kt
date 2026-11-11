@@ -39,6 +39,7 @@ class TdlibTelegramClient(
     context: Context,
     private val ingestionService: ScheduleMessageIngestionService,
     private val apiConfigStore: TelegramApiConfigStore,
+    private val chatSelectionStore: TelegramChatSelectionStore,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val appContext = context.applicationContext
@@ -63,6 +64,11 @@ class TdlibTelegramClient(
             for (update in updates) {
                 runCatching { handleUpdate(update) }
                     .onFailure { _authState.value = TelegramAuthState.ERROR }
+            }
+        }
+        scope.launch {
+            chatSelectionStore.selectedChatIds.collect { ids ->
+                setSelectedChatIds(ids)
             }
         }
     }
@@ -167,7 +173,25 @@ class TdlibTelegramClient(
     }
 
     fun setSelectedChatIds(chatIds: Set<Long>) {
+        val previous = selectedChatIds
         selectedChatIds = chatIds.toSet()
+        applyChatSelection(previous, selectedChatIds)
+    }
+
+    private fun applyChatSelection(previous: Set<Long>, current: Set<Long>) {
+        val activeClient = client ?: return
+        (current - previous).forEach { chatId ->
+            activeClient.send(TdApi.OpenChat(chatId)) { result ->
+                if (result is TdApi.Error) _authState.value = TelegramAuthState.ERROR
+            }
+        }
+        (previous - current).forEach { chatId ->
+            activeClient.send(TdApi.CloseChat(chatId), null)
+        }
+    }
+
+    private fun openAllSelectedChats() {
+        applyChatSelection(emptySet(), selectedChatIds)
     }
 
     fun refreshAuthorizationState() {
@@ -232,6 +256,7 @@ class TdlibTelegramClient(
             is TdApi.UpdateAuthorizationState -> {
                 val state = update.authorizationState
                 _authState.value = state.toLightAlertState()
+                if (state is TdApi.AuthorizationStateReady) openAllSelectedChats()
                 if (state is TdApi.AuthorizationStateWaitTdlibParameters) {
                     initializeTdlibParameters()
                 }

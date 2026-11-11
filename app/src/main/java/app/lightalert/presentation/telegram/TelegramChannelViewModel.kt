@@ -38,7 +38,6 @@ class TelegramChannelViewModel(
         viewModelScope.launch {
             selectionStore.selectedChatIds.collect { ids ->
                 _uiState.update { it.copy(selectedChatIds = ids) }
-                telegramClient.setSelectedChatIds(ids)
             }
         }
         viewModelScope.launch {

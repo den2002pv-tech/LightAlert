@@ -85,9 +85,12 @@ class ScheduleMessageIngestionService(
             )
         }
 
+        val versionAtEpochMillis = message.editedAtEpochMillis
+            ?: message.sentAtEpochMillis
+            ?: receivedAt
         val revision = ScheduleRevision(
             sourceMessageId = sourceKey,
-            receivedAt = Instant.ofEpochMilli(receivedAt),
+            receivedAt = Instant.ofEpochMilli(versionAtEpochMillis),
             schedule = schedule,
         )
         val merged = merger.merge(current, revision)
@@ -125,7 +128,7 @@ class ScheduleMessageIngestionService(
                     queueNumber = queue.number,
                     intervalsJson = gson.toJson(queue.intervals),
                     sourceMessageKey = sourceKey,
-                    updatedAtEpochMillis = receivedAt,
+                    updatedAtEpochMillis = versionAtEpochMillis,
                 )
             }
 

@@ -106,10 +106,10 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            if (state.isScheduleConfigured) {
-                ConfiguredScheduleCard()
-            } else {
-                EmptyScheduleCard()
+            when {
+                state.todayQueues.isNotEmpty() -> TodayQueuesCard(state.todayQueues)
+                state.isScheduleConfigured -> ConfiguredScheduleCard()
+                else -> EmptyScheduleCard()
             }
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -261,4 +261,42 @@ private fun BoltMark(
         }
         drawPath(path = path, color = color)
     }
+}
+
+@Composable
+private fun TodayQueuesCard(queues: List<TodayQueueUi>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text(
+                text = "Отключения сегодня",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            queues.forEach { queue ->
+                Text(
+                    text = "Черга ${queue.number}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                queue.intervals.forEach { interval ->
+                    Text(
+                        text = "  ${formatMinutes(interval.startMinute)} – ${formatMinutes(interval.endMinute)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+private fun formatMinutes(minuteOfDay: Int): String {
+    val hours = minuteOfDay / 60
+    val minutes = minuteOfDay % 60
+    return "%02d:%02d".format(hours, minutes)
 }

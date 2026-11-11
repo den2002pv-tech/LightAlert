@@ -27,6 +27,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val app = application as LightAlertApplication
+        app.startTelegramIfConfigured()
 
         setContent {
             LightAlertTheme {
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
                     )
                 } else {
                     val homeViewModel: HomeViewModel = viewModel(
-                        factory = HomeViewModelFactory(app.scheduleRepository),
+                        factory = HomeViewModelFactory(app.scheduleRepository, app.scheduleHistoryStore),
                     )
                     val homeState = homeViewModel.uiState.collectAsStateWithLifecycle()
                     HomeScreen(

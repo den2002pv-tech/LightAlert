@@ -75,9 +75,11 @@ class TdlibTelegramClient(
 
     @Synchronized
     fun start(): Boolean {
-        if (client != null) {
-            if (_authState.value != TelegramAuthState.ERROR) return true
-            return restart()
+        val current = client
+        if (current != null && _authState.value != TelegramAuthState.ERROR) return true
+        if (current != null) {
+            runCatching { current.send(TdApi.Close(), null) }
+            client = null
         }
         val apiConfig = runCatching { apiConfigStore.get() }.getOrNull()
         if (apiConfig == null || apiConfig.apiId <= 0 || apiConfig.apiHash.isBlank()) {

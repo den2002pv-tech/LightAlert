@@ -19,3 +19,8 @@ keystore.properties
 
 # Kotlin
 .kotlin/
+
+# Local tooling and generated repository artifacts
+/.polydev/
+pubg-code.txt
+repomix-output.xml

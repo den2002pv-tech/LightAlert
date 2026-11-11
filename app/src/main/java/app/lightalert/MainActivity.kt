@@ -2,6 +2,7 @@ package app.lightalert
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
@@ -33,6 +34,14 @@ class MainActivity : ComponentActivity() {
             LightAlertTheme {
                 var showTelegramConnection by rememberSaveable { mutableStateOf(false) }
                 var showChannelSelection by rememberSaveable { mutableStateOf(false) }
+
+                BackHandler(enabled = showChannelSelection) {
+                    showChannelSelection = false
+                    showTelegramConnection = true
+                }
+                BackHandler(enabled = showTelegramConnection && !showChannelSelection) {
+                    showTelegramConnection = false
+                }
 
                 if (showChannelSelection) {
                     val channelViewModel: TelegramChannelViewModel = viewModel(

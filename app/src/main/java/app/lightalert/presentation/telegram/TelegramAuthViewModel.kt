@@ -8,8 +8,10 @@ import app.lightalert.data.telegram.TelegramAuthState
 import app.lightalert.data.telegram.TelegramApiConfigStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class TelegramAuthUiState(
     val authState: TelegramAuthState = TelegramAuthState.NOT_CONFIGURED,
@@ -38,9 +40,11 @@ class TelegramAuthViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
             try {
-                apiConfigStore.save(apiId.toInt(), apiHash.trim())
-                check(telegramClient.start()) {
-                    "Не удалось запустить TDLib. Проверьте параметры и повторите попытку."
+                withContext(Dispatchers.IO) {
+                    apiConfigStore.save(apiId.toInt(), apiHash.trim())
+                    check(telegramClient.start()) {
+                        "Не удалось запустить TDLib. Проверьте параметры и повторите попытку."
+                    }
                 }
             } catch (exception: Exception) {
                 _uiState.update {
@@ -65,8 +69,19 @@ class TelegramAuthViewModel(
     }
 
     fun retryConnection() {
-        _uiState.update { it.copy(errorMessage = null) }
-        telegramClient.start()
+        if (_uiState.value.isSubmitting) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(errorMessage = null) }
+            try {
+                check(telegramClient.start()) {
+                    "Не удалось подключиться к Telegram. Повторите попытку."
+                }
+            } catch (exception: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = exception.message ?: "Не удалось подключиться к Telegram.")
+                }
+            }
+        }
     }
 
     private fun submit(action: suspend () -> Unit) {

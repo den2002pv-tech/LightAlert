@@ -75,7 +75,10 @@ class TdlibTelegramClient(
 
     @Synchronized
     fun start(): Boolean {
-        if (client != null) return true
+        if (client != null) {
+            if (_authState.value != TelegramAuthState.ERROR) return true
+            return restart()
+        }
         val apiConfig = runCatching { apiConfigStore.get() }.getOrNull()
         if (apiConfig == null || apiConfig.apiId <= 0 || apiConfig.apiHash.isBlank()) {
             _authState.value = TelegramAuthState.NOT_CONFIGURED
@@ -106,6 +109,16 @@ class TdlibTelegramClient(
             _authState.value = TelegramAuthState.ERROR
             false
         }
+    }
+
+    /**
+     * Stops the current TDLib client and creates a fresh client instance.
+     * This is also used by [start] when the existing client has entered ERROR.
+     */
+    @Synchronized
+    fun restart(): Boolean {
+        stop()
+        return start()
     }
 
     /**
@@ -273,6 +286,13 @@ class TdlibTelegramClient(
     }
 
     private suspend fun initializeTdlibParameters() {
+        val legacyTdlibDirectory = File(appContext.filesDir, "tdlib")
+        if (legacyTdlibDirectory.exists()) {
+            check(legacyTdlibDirectory.deleteRecursively()) {
+                "Unable to remove the legacy TDLib database"
+            }
+        }
+
         val tdlibDirectory = File(appContext.filesDir, "tdlib-secure").apply { mkdirs() }
         val filesDirectory = File(tdlibDirectory, "files").apply { mkdirs() }
         val databaseKey = databaseKeyStore.getOrCreateDatabaseKey()

@@ -87,7 +87,6 @@ class TelegramChannelViewModel(
             try {
                 val ids = _uiState.value.selectedChatIds
                 selectionStore.saveSelectedChatIds(ids)
-                telegramClient.setSelectedChatIds(ids)
             } catch (exception: Exception) {
                 _uiState.update {
                     it.copy(errorMessage = exception.message ?: "Не удалось сохранить выбор каналов.")

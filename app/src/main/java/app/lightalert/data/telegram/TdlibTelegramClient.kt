@@ -288,11 +288,8 @@ class TdlibTelegramClient(
     }
 
     private suspend fun initializeTdlibParameters() {
-        val legacyTdlibDirectory = File(appContext.filesDir, "tdlib")
-        if (legacyTdlibDirectory.exists()) {
-            check(legacyTdlibDirectory.deleteRecursively()) {
-                "Unable to remove the legacy TDLib database"
-            }
+        runCatching {
+            File(appContext.filesDir, "tdlib").deleteRecursively()
         }
 
         val tdlibDirectory = File(appContext.filesDir, "tdlib-secure").apply { mkdirs() }

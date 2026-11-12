@@ -7,9 +7,11 @@ import app.lightalert.data.telegram.TdlibTelegramClient
 import app.lightalert.data.telegram.TelegramAuthState
 import app.lightalert.data.telegram.TelegramChatSelectionStore
 import app.lightalert.data.telegram.TelegramChatSummary
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 data class TelegramChannelUiState(
@@ -33,6 +35,8 @@ class TelegramChannelViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TelegramChannelUiState())
     val uiState = _uiState.asStateFlow()
+    private val _saveSuccess = Channel<Unit>(Channel.CONFLATED)
+    val saveSuccess = _saveSuccess.receiveAsFlow()
 
     init {
         viewModelScope.launch {
@@ -87,6 +91,7 @@ class TelegramChannelViewModel(
             try {
                 val ids = _uiState.value.selectedChatIds
                 selectionStore.saveSelectedChatIds(ids)
+                _saveSuccess.send(Unit)
             } catch (exception: Exception) {
                 _uiState.update {
                     it.copy(errorMessage = exception.message ?: "Не удалось сохранить выбор каналов.")

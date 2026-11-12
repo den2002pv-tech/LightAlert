@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -51,6 +52,14 @@ class MainActivity : ComponentActivity() {
                         ),
                     )
                     val channelState = channelViewModel.uiState.collectAsStateWithLifecycle()
+
+                    LaunchedEffect(Unit) {
+                        channelViewModel.saveSuccess.collect {
+                            showChannelSelection = false
+                            showTelegramConnection = false
+                        }
+                    }
+
                     TelegramChannelScreen(
                         state = channelState.value,
                         onBack = { showChannelSelection = false; showTelegramConnection = true },

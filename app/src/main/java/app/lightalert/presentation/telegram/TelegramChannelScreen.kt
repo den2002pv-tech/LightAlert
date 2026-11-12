@@ -124,15 +124,27 @@ private fun ChannelRow(
     selected: Boolean,
     onToggle: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), onClick = onToggle) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onToggle,
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Checkbox(checked = selected, onCheckedChange = { onToggle() })
+            Checkbox(
+                checked = selected,
+                onCheckedChange = null,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(chat.title, fontWeight = FontWeight.SemiBold)
-                Text(chat.kind, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    chat.kind,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
                 val details = buildString {
                     if (chat.unreadCount > 0) append("Непрочитано: ${chat.unreadCount}")
                     chat.lastMessagePreview?.takeIf(String::isNotBlank)?.let {
